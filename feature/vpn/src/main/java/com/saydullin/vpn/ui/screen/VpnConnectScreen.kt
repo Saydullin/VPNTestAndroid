@@ -9,14 +9,19 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -25,19 +30,30 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.saydullin.domain.status.LoadingStatus
 import com.saydullin.vpn.R
 import com.saydullin.vpn.model.VpnConnection
 import com.saydullin.vpn.ui.component.button.VpnConnectionButton
 import com.saydullin.vpn.ui.component.status.VpnConnectionStatus
 import com.saydullin.vpn.viewModel.VpnConnectionViewModel
+import com.saydullin.vpn.viewModel.VpnServersViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun VpnConnectScreen() {
+    val vpnServersViewModel: VpnServersViewModel = hiltViewModel()
     val vpnConnectionViewModel: VpnConnectionViewModel = hiltViewModel()
+
+    val serversLoadingStatus = vpnServersViewModel.serverInfo.collectAsStateWithLifecycle()
     val connectionStatus = vpnConnectionViewModel.connectionStatus.collectAsStateWithLifecycle()
 
     val sheetState = rememberBottomSheetScaffoldState()
+
+    LaunchedEffect(Unit) {
+        vpnServersViewModel.getEuropeServers()
+    }
+
+    val serversStatus = serversLoadingStatus.value
 
     BottomSheetScaffold(
         scaffoldState = sheetState,
@@ -51,9 +67,25 @@ fun VpnConnectScreen() {
             ) {
                 Text("Server List", style = MaterialTheme.typography.titleMedium)
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("Server 1")
-                Text("Server 2")
-                Text("Server 3")
+                when(serversStatus) {
+                    LoadingStatus.Loading -> {
+                        LoadingIndicator()
+                    }
+                    is LoadingStatus.Success -> {
+                        LazyColumn {
+                            items(serversStatus.data) {
+                                Text(it.official)
+                            }
+                        }
+                    }
+                    is LoadingStatus.Error -> {
+                        Text(
+                            text = "Error while loading servers",
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                    null -> {}
+                }
             }
         },
         content = { padding ->

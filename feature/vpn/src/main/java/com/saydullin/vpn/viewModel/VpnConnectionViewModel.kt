@@ -20,6 +20,7 @@ class VpnConnectionViewModel @Inject constructor(
     val connectionStatus: StateFlow<VpnConnection?> = _connectionStatus
 
     private var connectJob: Job? = null
+    private var disconnectJob: Job? = null
 
     fun connectFastest() {
         connectJob?.cancel()
@@ -34,9 +35,17 @@ class VpnConnectionViewModel @Inject constructor(
     }
 
     fun disconnectFastest() {
-        connectJob?.cancel()
+        disconnectJob?.cancel()
 
-        _connectionStatus.value = null
+        disconnectJob = viewModelScope.launch {
+            _connectionStatus.value = VpnConnection.Loading
+
+            delay(2000)
+
+            connectJob?.cancel()
+
+            _connectionStatus.value = null
+        }
     }
 
 }
